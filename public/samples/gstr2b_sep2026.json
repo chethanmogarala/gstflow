@@ -1,0 +1,32 @@
+{
+  "_note": "Sample data, simplified from the GSTR-2B JSON layout. All names and GSTINs are made up.",
+  "data": {
+    "gstin": "29AAKFS4821M1ZQ",
+    "rtnprd": "092026",
+    "gendt": "14-10-2026",
+    "docdata": {
+      "b2b": [
+        { "ctin": "29AABCB1123K1Z2", "trdnm": "Bharat Packaging Co", "supfildt": "11-10-2026",
+          "inv": [ { "inum": "INV-2318", "dt": "04-09-2026", "val": 57230, "txval": 48500, "igst": 0, "cgst": 4365, "sgst": 4365, "cess": 0, "itcavl": "Y" } ] },
+        { "ctin": "29AADCD5521L1ZK", "trdnm": "Deccan Steel Supplies", "supfildt": "10-10-2026",
+          "inv": [ { "inum": "DSS/26-27/0412", "dt": "07-09-2026", "val": 147500, "txval": 125000, "igst": 0, "cgst": 11250, "sgst": 11250, "cess": 0, "itcavl": "Y" } ] },
+        { "ctin": "29ABNPN3344C1ZT", "trdnm": "Nandi Electricals", "supfildt": "09-10-2026",
+          "inv": [ { "inum": "NE/1187", "dt": "09-09-2026", "val": 14632, "txval": 12400, "igst": 0, "cgst": 1116, "sgst": 1116, "cess": 0, "itcavl": "Y" } ] },
+        { "ctin": "33AACCC4410F1Z7", "trdnm": "Coastal Chemicals", "supfildt": "11-10-2026",
+          "inv": [ { "inum": "CC/2026/339", "dt": "29-08-2026", "val": 47200, "txval": 40000, "igst": 7200, "cgst": 0, "sgst": 0, "cess": 0, "itcavl": "Y" } ] },
+        { "ctin": "29AAGFS9012D1Z4", "trdnm": "Shree Ganesh Plastics", "supfildt": "10-10-2026",
+          "inv": [ { "inum": "SGP/457", "dt": "11-09-2026", "val": 42716, "txval": 36200, "igst": 0, "cgst": 3258, "sgst": 3258, "cess": 0, "itcavl": "Y" } ] },
+        { "ctin": "29AAECM2210E1ZB", "trdnm": "Mysore Paper Mills Agency", "supfildt": "11-10-2026",
+          "inv": [ { "inum": "MPM-7781", "dt": "13-09-2026", "val": 61950, "txval": 52500, "igst": 0, "cgst": 4725, "sgst": 4725, "cess": 0, "itcavl": "Y" } ] },
+        { "ctin": "29AAPFS8833H1Z6", "trdnm": "Sunrise Tiles & Sanitary", "supfildt": "11-10-2026",
+          "inv": [] },
+        { "ctin": "29AAKCM1209J1Z3", "trdnm": "Metro Office Mart", "supfildt": "10-10-2026",
+          "inv": [ { "inum": "MOM-5512", "dt": "17-09-2026", "val": 3481, "txval": 2950, "igst": 0, "cgst": 265.5, "sgst": 265.5, "cess": 0, "itcavl": "Y" } ] },
+        { "ctin": "29ABFPR4471K1Z8", "trdnm": "Royal Caterers", "supfildt": "11-10-2026",
+          "inv": [ { "inum": "RC-301", "dt": "19-09-2026", "val": 14700, "txval": 14000, "igst": 0, "cgst": 350, "sgst": 350, "cess": 0, "itcavl": "Y" } ] },
+        { "ctin": "27AAXFA9090L1Z2", "trdnm": "Apex Enterprises", "supfildt": "11-10-2026",
+          "inv": [ { "inum": "AE/889", "dt": "21-09-2026", "val": 100300, "txval": 85000, "igst": 15300, "cgst": 0, "sgst": 0, "cess": 0, "itcavl": "Y" } ] }
+      ]
+    }
+  }
+}
