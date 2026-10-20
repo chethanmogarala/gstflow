@@ -21,7 +21,7 @@ export function exportReconciliation(client: Client, period: Period, rows: Row[]
   ], [28, 60])
   sheet(wb, 'Reconciliation', [
     ['Status', 'Rule', 'Supplier', 'GSTIN', 'Register invoice', '2B invoice', 'Date', 'Register taxable', '2B taxable', 'Register tax', '2B tax', 'Reason', 'Risks', 'Decision', 'Note', 'Decided by'],
-    ...rows.map(r => [STATUS[r.status].label, r.rule, r.supplier, r.gstin, r.reg?.invoice ?? '', r.b2b?.invoice ?? '', dmy((r.reg ?? r.b2b)?.date),
+    ...rows.map(r => [r.rule === '2B-first' ? (r.mark === 'have' ? 'Client has it' : r.mark === 'not' ? 'Not ours' : r.mark === 'ask' ? 'Ask client' : 'Not checked') : STATUS[r.status].label, r.rule, r.supplier, r.gstin, r.reg?.invoice ?? '', r.b2b?.invoice ?? '', dmy((r.reg ?? r.b2b)?.date),
       r.reg?.taxable ?? null, r.b2b?.taxable ?? null, r.reg?.tax ?? null, r.b2b?.tax ?? null, r.reason,
       r.risks.map(x => x.type).join(', '), r.decision ?? '', r.note ?? '', r.decided_by ?? '']),
   ], [16, 30, 28, 18, 16, 16, 11, 14, 14, 12, 12, 60, 20, 18, 30, 24])
@@ -43,6 +43,17 @@ export function exportReconciliation(client: Client, period: Period, rows: Row[]
     ...auditLog.map(a => [new Date(a.at).toLocaleString('en-IN'), a.user_email ?? '', a.action, a.detail ?? '']),
   ], [22, 28, 30, 90])
   XLSX.writeFile(wb, `GSTFlow_${safe(client.name)}_${period.period}.xlsx`)
+}
+
+/** Just the IMS decisions, one row per GSTR-2B invoice. */
+export function exportIms(client: Client, period: Period, rows: Row[]) {
+  const wb = XLSX.utils.book_new()
+  sheet(wb, 'IMS actions', [
+    ['Supplier GSTIN', 'Supplier', 'Invoice number', 'Invoice date', 'Taxable value', 'Tax', 'Action', 'Why'],
+    ...rows.filter(r => r.b2b).map(r => [r.gstin, r.supplier, r.b2b!.invoice, dmy(r.b2b!.date), r.b2b!.taxable, r.b2b!.tax,
+      r.ims_final ?? r.ims_suggested ?? 'Pending', r.ims_final && r.ims_final !== r.ims_suggested ? `Set by reviewer: ${r.decision ?? r.mark ?? ''}` : r.ims_why ?? '']),
+  ], [18, 28, 16, 12, 14, 12, 10, 50])
+  XLSX.writeFile(wb, `GSTFlow_${safe(client.name)}_${period.period}_IMS.xlsx`)
 }
 
 /** 2B-first: a clean purchase register (Tally-style columns) built from confirmed invoices. */

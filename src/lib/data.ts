@@ -4,6 +4,7 @@ import type { B2BData } from '../engine/parse'
 import { carriesForward, reconcile, summarize } from '../engine/reconcile'
 import type { Doc, Result, Supplier } from '../engine/types'
 import { db } from './supabase'
+import { openCount } from './todo'
 import type { AuditEntry, Client, DocRow, Period, ResultRow, Row } from './types'
 
 const PAGE = 1000
@@ -89,18 +90,20 @@ export async function runReconciliation(args: {
   client: Client; period: Period; email: string
   register: Doc[]; b2b: B2BData; registerFile: string; b2bFile: string
   columnMap: Record<string, string>
+  /** Use these instead of last period's leftovers (sample data). */
+  carryForward?: Doc[]
 }) {
   const { client, period, email, register, b2b } = args
-  const carryForward = await loadCarryForward(client, period.period)
+  const carryForward = args.carryForward ?? await loadCarryForward(client, period.period)
   const master = await loadMaster(client.id)
   const input = { register, carryForward, b2b: b2b.docs, filed: b2b.filed, master, clientGstin: client.gstin }
   const results = reconcile(input)
-  const summary = summarize(results, input)
+  const summary = { ...summarize(results, input), open: openCount(results) }
   await saveResults(client.firm_id, period.id, [...register, ...carryForward, ...b2b.docs], results)
   await db().from('periods').update({
     status: 'in_review', run_at: new Date().toISOString(), summary, register_file: args.registerFile, b2b_file: args.b2bFile,
   }).eq('id', period.id)
-  await db().from('clients').update({ column_map: args.columnMap }).eq('id', client.id)
+  await db().from('clients').update({ column_map: args.columnMap, mode: 'register' }).eq('id', client.id)
   const c = summary.counts
   await audit(client.firm_id, client.id, period.id, email, 'Ran reconciliation',
     `${args.registerFile} (${register.length} rows) vs ${args.b2bFile} (${b2b.docs.length} records), ${carryForward.length} carried forward → ` +
@@ -117,8 +120,10 @@ export async function run2bFirst(args: { client: Client; period: Period; email: 
   }))
   await saveResults(client.firm_id, period.id, b2b.docs, results)
   await db().from('periods').update({
-    status: 'in_review', run_at: new Date().toISOString(), b2b_file: args.b2bFile, summary: { b2bRecords: b2b.docs.length },
+    status: 'in_review', run_at: new Date().toISOString(), register_file: null, b2b_file: args.b2bFile,
+    summary: { b2bRecords: b2b.docs.length, open: b2b.docs.length },
   }).eq('id', period.id)
+  await db().from('clients').update({ mode: '2b_first' }).eq('id', client.id)
   await audit(client.firm_id, client.id, period.id, email, 'Imported GSTR-2B for 2B-first review', `${args.b2bFile} · ${b2b.docs.length} invoices`)
 }
 
@@ -156,4 +161,18 @@ export async function loadAudit(period_id: string): Promise<AuditEntry[]> {
   const { data, error } = await db().from('audit_log').select('id,user_email,action,detail,at').eq('period_id', period_id).order('at', { ascending: false }).limit(500)
   if (error) throw error
   return data ?? []
+}
+
+/** The period row for a client and month, created on first use. */
+export async function ensurePeriod(client: Client, period: string): Promise<Period> {
+  const { data } = await db().from('periods').select('*').eq('client_id', client.id).eq('period', period).maybeSingle()
+  if (data) return data
+  const { data: created, error } = await db().from('periods').insert({ firm_id: client.firm_id, client_id: client.id, period }).select().single()
+  if (error) throw error
+  return created
+}
+
+/** Keep the clients list in step with review progress. */
+export async function saveProgress(period: Period, rows: Row[], itcAtRisk: number) {
+  await db().from('periods').update({ summary: { ...(period.summary ?? {}), open: openCount(rows), itcAtRisk } }).eq('id', period.id)
 }

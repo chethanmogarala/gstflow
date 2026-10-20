@@ -1,12 +1,12 @@
 import { HashRouter, NavLink, Route, Routes } from 'react-router-dom'
 import { ToastProvider } from './components/ui'
 import { SessionProvider, useSession } from './lib/session'
-import { supabase } from './lib/supabase'
-import ClientPage from './pages/ClientPage'
+import { isDemo, supabase } from './lib/supabase'
+import ClientSettings from './pages/ClientSettings'
 import ClientsPage from './pages/ClientsPage'
 import FirmSetup from './pages/FirmSetup'
 import Login from './pages/Login'
-import PeriodPage from './pages/PeriodPage'
+import MonthPage from './pages/MonthPage'
 import SettingsPage from './pages/SettingsPage'
 
 export default function App() {
@@ -47,14 +47,16 @@ function Shell() {
         <div className="side-foot">
           <span>{email} · {member?.role}</span>
           <button onClick={signOut}>Sign out</button>
-          <span>Test version · sample data available on each import screen</span>
+          <span>{isDemo ? 'Demo mode: nothing is saved' : 'Test version'}</span>
         </div>
       </aside>
       <main className="main">
+        {isDemo && <div className="notice">Demo mode. Everything stays in this browser tab and is gone when you reload.</div>}
         <Routes>
           <Route path="/" element={<ClientsPage />} />
-          <Route path="/clients/:clientId" element={<ClientPage />} />
-          <Route path="/clients/:clientId/periods/:periodId" element={<PeriodPage />} />
+          <Route path="/clients/:clientId" element={<MonthPage />} />
+          <Route path="/clients/:clientId/settings" element={<ClientSettings />} />
+          <Route path="/clients/:clientId/:period" element={<MonthPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="*" element={<div className="empty">Page not found. <a href="#/">Go to clients</a></div>} />
         </Routes>

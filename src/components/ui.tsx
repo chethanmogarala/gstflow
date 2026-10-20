@@ -3,9 +3,9 @@ import type { Status } from '../engine/types'
 
 export const STATUS: Record<Status, { label: string; cls: string }> = {
   matched: { label: 'Matched', cls: 'p-good' },
-  probable: { label: 'Probable match', cls: 'p-warn' },
-  only_in_register: { label: 'Only in register', cls: 'p-bad' },
-  only_in_2b: { label: 'Only in 2B', cls: 'p-info' },
+  probable: { label: 'Small difference', cls: 'p-warn' },
+  only_in_register: { label: 'Missing from 2B', cls: 'p-bad' },
+  only_in_2b: { label: "Not in client's books", cls: 'p-info' },
 }
 
 export function StatusPill({ status }: { status: Status }) {
@@ -66,4 +66,13 @@ export function errorText(e: unknown): string {
 
 export async function copyText(text: string): Promise<boolean> {
   try { await navigator.clipboard.writeText(text); return true } catch { return false }
+}
+
+/** A one-line tip shown until dismissed (remembered in this browser). */
+export function Hint({ id, children }: { id: string; children: ReactNode }) {
+  const key = `gstflow-hint-${id}`
+  const [hidden, setHidden] = useState(() => { try { return localStorage.getItem(key) === '1' } catch { return false } })
+  if (hidden) return null
+  const close = () => { try { localStorage.setItem(key, '1') } catch { /* private mode */ } setHidden(true) }
+  return <div className="hint"><span>{children}</span><button onClick={close} aria-label="Dismiss tip">Got it</button></div>
 }

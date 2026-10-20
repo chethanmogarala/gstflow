@@ -1,6 +1,7 @@
 // Turns a stored result back into the step-by-step reasoning shown in the review drawer.
 import { inr, dmy, periodLabel } from '../engine/format'
 import { invLoose, invStrict, needsFollowUp, RULES, TOLERANCE } from '../engine/reconcile'
+import { NO_FOLLOW_UP } from './todo'
 import type { Row } from './types'
 
 export interface Step { name: string; ok: boolean | null; text: string }
@@ -36,7 +37,8 @@ export function supplierGroups(rows: Row[]): SupplierGroup[] {
   const g = new Map<string, SupplierGroup>()
   for (const r of rows) {
     const manual = r.rule === 'Added by staff'
-    if (!(needsFollowUp(r) || manual)) continue
+    const correct = r.decision === 'Ask supplier to correct'
+    if (!(needsFollowUp(r) || manual || correct) || (r.decision && NO_FOLLOW_UP.has(r.decision))) continue
     const x = g.get(r.gstin) ?? { supplier: r.supplier, gstin: r.gstin, items: [], tax: 0, valueIssue: false }
     x.items.push(r)
     if (r.rule === RULES.value) { x.valueIssue = true; x.tax += Math.abs((r.b2b?.tax ?? 0) - (r.reg?.tax ?? 0)) }
@@ -48,19 +50,13 @@ export function supplierGroups(rows: Row[]): SupplierGroup[] {
 
 export function supplierMessage(g: SupplierGroup, clientName: string, clientGstin: string, period: string): string {
   const lines = g.items.map(x => {
+    if (x.decision === 'Ask supplier to correct') {
+      const d = (x.b2b ?? x.reg)!
+      return `- ${d.invoice} dated ${dmy(d.date)}: ${x.risks.find(r => r.type === 'Wrong tax type')?.note ?? 'please check the tax charged'}. Please issue a corrected invoice or amend GSTR-1.`
+    }
     if (x.b2b && x.reg) return `- ${x.b2b.invoice} dated ${dmy(x.b2b.date)}: your GSTR-1 shows taxable ${inr(x.b2b.taxable)}, our books show ${inr(x.reg.taxable)}. Please confirm, and amend or issue a credit note if needed.`
     const r = x.reg!
     return `- ${r.invoice} dated ${dmy(r.date)}, taxable ${inr(r.taxable)}, GST ${inr(r.tax)}: not showing in our GSTR-2B. Please report it in your GSTR-1.`
   })
   return `Dear ${g.supplier} team,\n\nFor ${periodLabel(period)}, please look at the following invoices:\n${lines.join('\n')}\n\nThis lets us claim the input tax credit on time.\n\nThank you,\n${clientName} (GSTIN ${clientGstin})`
 }
-
-/** Decisions a reviewer can take, by status. */
-export const DECISIONS: Record<Row['status'], string[]> = {
-  matched: [],
-  probable: ['Confirmed match', 'Not a match'],
-  only_in_register: ['Chase supplier', 'Claim next period', 'Remove from register'],
-  only_in_2b: ['Ask client', 'Add to register', 'Reject in IMS'],
-}
-
-export const isOpen = (r: Row) => r.status !== 'matched' && !r.decision

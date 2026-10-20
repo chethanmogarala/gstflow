@@ -36,6 +36,29 @@ export function previousPeriod(period: string): string {
   return String(m).padStart(2, '0') + y
 }
 
+/** The return period being worked on today: last month. */
+export function currentReturnPeriod(today = new Date()): string {
+  const d = new Date(today.getFullYear(), today.getMonth() - 1, 1)
+  return String(d.getMonth() + 1).padStart(2, '0') + d.getFullYear()
+}
+
+/** The period after 'MMYYYY'. */
+export function nextPeriod(period: string): string {
+  let m = Number(period.slice(0, 2)) + 1
+  let y = Number(period.slice(2))
+  if (m === 13) { m = 1; y += 1 }
+  return String(m).padStart(2, '0') + y
+}
+
+/** GSTR-3B for monthly filers is due on the 20th of the following month. */
+export function dueDate(period: string): string {
+  const n = nextPeriod(period)
+  return `20 ${MONTHS[Number(n.slice(0, 2)) - 1]} ${n.slice(2)}`
+}
+
+/** 'MMYYYY' -> 'YYYYMM' so periods sort in time order. */
+export const periodSortKey = (p: string) => p.slice(2) + p.slice(0, 2)
+
 const MONTH_INDEX: Record<string, number> = Object.fromEntries(MONTHS.map((m, i) => [m.toLowerCase(), i + 1]))
 
 /** Reads the date formats found in Tally, Excel and portal exports. Returns ISO or null. */

@@ -1,121 +1,128 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { errorText, Tile, useToast } from '../components/ui'
-import { inr, periodShort } from '../engine/format'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { errorText, Hint, useToast } from '../components/ui'
+import { currentReturnPeriod, dueDate, inr, nextPeriod, periodLabel, previousPeriod } from '../engine/format'
 import { GSTIN_RE } from '../engine/reconcile'
 import { audit } from '../lib/data'
+import { loadSample, SAMPLE } from '../lib/sample'
 import { useFirm } from '../lib/session'
 import { db } from '../lib/supabase'
-import type { Client, Mode, Period } from '../lib/types'
+import type { Client, Period } from '../lib/types'
 
-const STATUS_LABEL: Record<Period['status'], [string, string]> = {
-  draft: ['Files awaited', 'p-mute'],
-  in_review: ['In review', 'p-info'],
-  final: ['Final', 'p-good'],
+interface Next { rank: number; label: string; cls: string; action: string }
+
+function nextStep(p: Period | undefined): Next {
+  const open = Number((p?.summary as { open?: number } | null)?.open ?? 0)
+  if (!p?.run_at) return { rank: 1, label: 'Files not uploaded', cls: 'p-mute', action: 'Upload files' }
+  if (p.status === 'final') return { rank: 3, label: 'Closed', cls: 'p-good', action: 'View' }
+  if (open > 0) return { rank: 0, label: `${open} issue${open > 1 ? 's' : ''} to fix`, cls: 'p-warn', action: 'Fix issues' }
+  return { rank: 2, label: 'Ready to send & close', cls: 'p-info', action: 'Send & close' }
 }
 
 export default function ClientsPage() {
   const { firm, email } = useFirm()
   const toast = useToast()
   const nav = useNavigate()
+  const [params, setParams] = useSearchParams()
+  const month = params.get('m') ?? currentReturnPeriod()
   const [clients, setClients] = useState<Client[] | null>(null)
-  const [latest, setLatest] = useState<Record<string, Period>>({})
+  const [periods, setPeriods] = useState<Record<string, Period>>({})
   const [adding, setAdding] = useState(false)
-  const [form, setForm] = useState({ name: '', gstin: '', mode: 'register' as Mode })
+  const [form, setForm] = useState({ name: '', gstin: '' })
   const [error, setError] = useState('')
+  const [loadingSample, setLoadingSample] = useState(false)
 
-  async function load() {
-    const [{ data: cs, error: e1 }, { data: ps, error: e2 }] = await Promise.all([
+  useEffect(() => {
+    Promise.all([
       db().from('clients').select('*').order('name'),
-      db().from('periods').select('*').order('period', { ascending: false }),
-    ])
-    if (e1 || e2) { toast(errorText(e1 ?? e2)); return }
-    const byClient: Record<string, Period> = {}
-    // Periods are MMYYYY, so sort by year then month to find the latest.
-    for (const p of (ps ?? []).sort((a, b) => (b.period.slice(2) + b.period.slice(0, 2)).localeCompare(a.period.slice(2) + a.period.slice(0, 2)))) {
-      if (!byClient[p.client_id]) byClient[p.client_id] = p
-    }
-    setClients(cs ?? [])
-    setLatest(byClient)
-  }
-  useEffect(() => { load() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+      db().from('periods').select('*').eq('period', month),
+    ]).then(([c, p]) => {
+      if (c.error || p.error) { toast(errorText(c.error ?? p.error)); return }
+      setClients(c.data ?? [])
+      setPeriods(Object.fromEntries((p.data ?? []).map((x: Period) => [x.client_id, x])))
+    })
+  }, [month, toast])
 
   async function add(e: FormEvent) {
     e.preventDefault()
     setError('')
     const gstin = form.gstin.trim().toUpperCase()
-    if (!GSTIN_RE.test(gstin)) { setError('That GSTIN is not in the right format (15 characters, e.g. 29AAKFS4821M1ZQ).'); return }
-    const { data, error } = await db().from('clients').insert({ firm_id: firm.id, name: form.name.trim(), gstin, mode: form.mode }).select().single()
+    if (!GSTIN_RE.test(gstin)) { setError('That GSTIN is not in the right format: 15 characters, like 29AAKFS4821M1ZQ.'); return }
+    const { data, error } = await db().from('clients').insert({ firm_id: firm.id, name: form.name.trim(), gstin }).select().single()
     if (error) { setError(error.code === '23505' ? 'A client with this GSTIN already exists.' : errorText(error)); return }
     await audit(firm.id, data.id, null, email, 'Added client', `${data.name} · ${gstin}`)
-    toast('Client added')
-    nav(`/clients/${data.id}`)
+    nav(`/clients/${data.id}/${month}`)
   }
 
-  const summaries = Object.values(latest).map(p => p.summary as { itcAtRisk?: number; counts?: Record<string, number> } | null)
-  const atRisk = summaries.reduce((s, x) => s + (x?.itcAtRisk ?? 0), 0)
-  const inReview = Object.values(latest).filter(p => p.status === 'in_review').length
-  const finals = Object.values(latest).filter(p => p.status === 'final').length
+  async function trySample() {
+    setLoadingSample(true)
+    try {
+      const c = await loadSample(firm, email)
+      nav(`/clients/${c.id}/${SAMPLE.period}`)
+    } catch (e) { toast(errorText(e)); setLoadingSample(false) }
+  }
+
+  const list = (clients ?? []).map(c => ({ c, p: periods[c.id], next: nextStep(periods[c.id]) }))
+    .sort((a, b) => a.next.rank - b.next.rank || a.c.name.localeCompare(b.c.name))
+  const attention = list.filter(x => x.next.rank < 3).length
+  const hasSample = clients?.some(c => c.gstin === SAMPLE.gstin)
 
   return (
     <>
       <div className="head">
-        <div><div className="eyebrow">{firm.name}</div><h1>Clients</h1><p className="sub">Purchase reconciliation status for every client, by their latest return period.</p></div>
-        <div className="actions"><button className="btn primary" onClick={() => setAdding(!adding)}>{adding ? 'Close' : 'Add client'}</button></div>
+        <div><div className="eyebrow">{firm.name}</div><h1>{periodLabel(month)} returns</h1>
+          <p className="sub">GSTR-3B due {dueDate(month)}.{clients?.length ? ` ${attention} of ${clients.length} clients need attention.` : ''}</p></div>
+        <div className="actions">
+          <div className="month-switch">
+            <button className="btn sm" onClick={() => setParams({ m: previousPeriod(month) })} aria-label="Previous month">‹</button>
+            <span>{periodLabel(month)}</span>
+            <button className="btn sm" onClick={() => setParams({ m: nextPeriod(month) })} aria-label="Next month">›</button>
+          </div>
+          <button className="btn primary" onClick={() => setAdding(!adding)}>{adding ? 'Close' : 'Add client'}</button>
+        </div>
       </div>
 
       {adding && (
         <form className="panel" onSubmit={add}>
-          <div className="panel-head"><h2>New client</h2></div>
           <div className="panel-body">
             <div className="form-row">
               <label className="field">Business name<input id="c-name" required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></label>
-              <label className="field">GSTIN<input id="c-gstin" required maxLength={15} value={form.gstin} onChange={e => setForm({ ...form, gstin: e.target.value })} placeholder="29AAKFS4821M1ZQ" className="mono" /></label>
-            </div>
-            <div className="mode">
-              <button type="button" className={form.mode === 'register' ? 'on' : ''} onClick={() => setForm({ ...form, mode: 'register' })}><b>Purchase register + GSTR-2B</b><span>Client keeps books in Tally, Busy or Excel</span></button>
-              <button type="button" className={form.mode === '2b_first' ? 'on' : ''} onClick={() => setForm({ ...form, mode: '2b_first' })}><b>GSTR-2B first</b><span>Messy or missing books: build the register from 2B</span></button>
+              <label className="field">GSTIN<input id="c-gstin" required maxLength={15} className="mono" value={form.gstin} onChange={e => setForm({ ...form, gstin: e.target.value })} placeholder="29AAKFS4821M1ZQ" /></label>
+              <button className="btn primary">Add and upload files</button>
             </div>
             {error && <div className="notice bad">{error}</div>}
-            <div className="actions"><button className="btn primary">Add client</button></div>
           </div>
         </form>
       )}
 
-      <div className="tiles four">
-        <Tile k="Clients" v={clients?.length ?? '–'} />
-        <Tile k="In review" v={inReview} tone="warn" h="latest period open" />
-        <Tile k="Final" v={finals} tone="good" h="latest period closed" />
-        <Tile k="ITC at risk" v={inr(atRisk)} tone="bad" money h="across latest periods" />
-      </div>
-
-      <section className="panel">
-        <div className="panel-head"><h2>All clients</h2></div>
-        {clients === null ? <div className="empty">Loading…</div> : clients.length === 0 ? (
-          <div className="empty">No clients yet. Add your first client to start a reconciliation.</div>
-        ) : (
-          <div className="table-wrap"><table>
-            <thead><tr><th>Client</th><th>Mode</th><th>Latest period</th><th>Status</th><th className="r">Open exceptions</th><th className="r">ITC at risk</th></tr></thead>
-            <tbody>
-              {clients.map(c => {
-                const p = latest[c.id]
-                const s = p?.summary as { itcAtRisk?: number } | null
-                const [label, cls] = p ? STATUS_LABEL[p.status] : ['No periods yet', 'p-mute']
-                return (
-                  <tr key={c.id} className="click" onClick={() => nav(`/clients/${c.id}`)}>
-                    <td><div className="s1">{c.name}</div><div className="s2 mono">{c.gstin}</div></td>
-                    <td>{c.mode === '2b_first' ? <>2B-first<span className="tag">messy books</span></> : 'Register import'}</td>
-                    <td>{p ? periodShort(p.period) : '–'}</td>
-                    <td><span className={`pill ${cls}`}>{label}</span></td>
-                    <td className="r num">{p?.summary && 'open' in (p.summary as object) ? String((p.summary as { open: number }).open) : '–'}</td>
-                    <td className="r num">{s?.itcAtRisk != null ? inr(s.itcAtRisk) : '–'}</td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table></div>
-        )}
-      </section>
+      {clients === null ? <div className="empty">Loading…</div> : clients.length === 0 ? (
+        <section className="panel"><div className="empty-state">
+          <h2>Add your first client</h2>
+          <p className="muted">Or try GSTFlow first with a made-up client whose September 2026 is already matched.</p>
+          <div className="actions" style={{ justifyContent: 'center' }}>
+            <button className="btn primary" onClick={() => setAdding(true)}>Add client</button>
+            <button className="btn" onClick={trySample} disabled={loadingSample}>{loadingSample ? 'Loading sample…' : 'Try it with sample data'}</button>
+          </div>
+        </div></section>
+      ) : (
+        <>
+          <Hint id="clients">Clients that need you most are at the top. Click a client to upload, fix issues, or send and close.</Hint>
+          <section className="panel">
+            {list.map(({ c, p, next }) => {
+              const risk = (p?.summary as { itcAtRisk?: number } | null)?.itcAtRisk
+              return (
+                <div key={c.id} className="client-row" onClick={() => nav(`/clients/${c.id}/${month}`)}>
+                  <div className="client-who"><div className="s1">{c.name}</div><div className="s2 mono">{c.gstin}</div></div>
+                  <span className={`pill ${next.cls}`}>{next.label}</span>
+                  <span className="small muted client-risk">{risk ? <>ITC you may lose <b className="num" style={{ color: 'var(--bad)' }}>{inr(risk)}</b></> : ''}</span>
+                  <button className={`btn sm ${next.rank < 3 ? 'primary' : ''}`}>{next.action}</button>
+                </div>
+              )
+            })}
+          </section>
+          {!hasSample && <p className="small muted" style={{ margin: 0 }}>Want to experiment? <button className="link" onClick={trySample} disabled={loadingSample}>{loadingSample ? 'Loading…' : 'Add the sample client'}</button></p>}
+        </>
+      )}
     </>
   )
 }
