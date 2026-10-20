@@ -51,7 +51,13 @@ npm install
 npm run dev
 ```
 
-Run the engine tests:
+Try the app without a database (demo mode keeps everything in the browser tab; click **Try it with sample data**):
+
+```bash
+npm run dev -- --mode demo
+```
+
+Run the tests:
 
 ```bash
 npx vitest run
