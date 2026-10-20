@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { errorText } from '../components/ui'
+import { Brand, errorText } from '../components/ui'
 import { db } from '../lib/supabase'
 
 export default function Login() {
@@ -34,7 +34,7 @@ export default function Login() {
   return (
     <div className="center">
       <div className="auth">
-        <div className="brand"><div className="brand-mark">GF</div><div><b>GSTFlow</b><span>Purchase reconciliation for CA firms</span></div></div>
+        <Brand sub="Purchase reconciliation for CA firms" />
         <form className="panel" onSubmit={submit}>
           <div className="panel-head"><h2>{mode === 'in' ? 'Sign in' : 'Create an account'}</h2></div>
           <div className="panel-body">

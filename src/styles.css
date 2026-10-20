@@ -1,25 +1,27 @@
 /* Layout: app shell — slim sidebar + working area; summary tiles before tables; review drawer slides over on the right */
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@600&display=swap');
 
 :root {
-  --bg: #F4F6F9;
-  --surface: #FFFFFF;
-  --ink: #17202C;
-  --muted: #5A6577;
-  --line: #E0E5EC;
-  --accent: #2D4BA0;
-  --good: #1D7A4C;
+  /* GSTFlow Brand tokens: see the brand system (indigo = action, teal = match, marigold = logo only) */
+  --bg: #F4F6FA;          /* surface-50 */
+  --surface: #FFFFFF;     /* surface-0 */
+  --ink: #161D33;         /* text */
+  --muted: #566079;       /* text-muted */
+  --line: #DEE3EC;
+  --accent: #2E3F94;      /* indigo-600 */
+  --good: #0F7C79;        /* teal-600 = success */
   --warn: #9C5D00;
   --bad: #B42318;
-  --font-display: "Source Serif 4", Georgia, serif;
+  --brand-ink: #1E2B5E;   /* ink-900 */
+  --font-display: "IBM Plex Serif", Georgia, serif;
   --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-data: "IBM Plex Mono", ui-monospace, Consolas, monospace;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0F131A; --surface: #171D26; --ink: #E5E9F0; --muted: #9AA5B5; --line: #2A323E;
-    --accent: #93A9F2; --good: #4FC28B; --warn: #E2A84E; --bad: #F27A6E; color-scheme: dark;
+    --bg: #0F1320; --surface: #171D2B; --ink: #E7EAF2; --muted: #9DA6BA; --line: #2A3245;
+    --accent: #9AAAF0; --good: #5FC9C3; --warn: #E2A84E; --bad: #F27A6E; --brand-ink: #E6E9F5; color-scheme: dark;
   }
 }
 * { box-sizing: border-box; }
@@ -37,9 +39,10 @@ a { color: var(--accent); }
 .shell { display: grid; grid-template-columns: 232px 1fr; min-height: 100%; }
 .side { background: var(--surface); border-right: 1px solid var(--line); padding: 20px 14px; display: flex; flex-direction: column; gap: 22px; }
 .brand { display: flex; align-items: center; gap: 10px; padding: 0 6px; }
-.brand-mark { width: 30px; height: 30px; border-radius: 7px; background: var(--accent); color: var(--surface); display: grid; place-items: center; font-weight: 600; font-size: 13px; flex: none; }
-.brand b { font-size: 15px; display: block; line-height: 1.2; }
-.brand span { font-size: 11.5px; color: var(--muted); }
+.brand-logo { width: 32px; height: 32px; flex: none; display: block; }
+.brand b { font-size: 16px; display: block; line-height: 1.2; font-weight: 600; letter-spacing: -0.2px; color: var(--brand-ink); }
+.brand b .flow { color: var(--good); }
+.brand b + span { display: block; font-size: 11.5px; color: var(--muted); }
 .nav { display: flex; flex-direction: column; gap: 2px; }
 .nav-label { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); padding: 10px 8px 4px; }
 .nav a, .nav button { text-align: left; background: none; border: 0; padding: 8px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; display: flex; justify-content: space-between; gap: 8px; }
@@ -95,6 +98,7 @@ th { text-align: left; font-size: 11.5px; font-weight: 500; text-transform: uppe
 td { padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
 tr:last-child td { border-bottom: 0; }
 th.r, td.r { text-align: right; }
+td.num { white-space: nowrap; }
 tbody tr.click { cursor: pointer; }
 tbody tr.click:hover td { background: color-mix(in srgb, var(--accent) 5%, transparent); }
 .s1 { font-weight: 500; }
@@ -178,6 +182,11 @@ textarea { min-height: 70px; resize: vertical; }
 code { font-family: var(--font-data); font-size: 12.5px; background: var(--bg); padding: 1px 5px; border-radius: 4px; }
 
 /* ---------- simplified flow ---------- */
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.seg button { border: 0; background: none; padding: 5px 12px; font-size: 12.5px; font-weight: 500; color: var(--muted); }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button.on { background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); }
+.chip .count { font-family: var(--font-data); font-size: 11.5px; margin-left: 2px; opacity: .8; }
 .link { background: none; border: 0; padding: 0; color: var(--accent); font: inherit; text-decoration: underline; text-underline-offset: 2px; }
 .link:disabled { color: var(--muted); }
 .hint { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 13px; padding: 9px 12px; border-radius: 8px; background: color-mix(in srgb, var(--accent) 8%, var(--surface)); border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--line)); }

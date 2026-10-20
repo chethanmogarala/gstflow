@@ -76,3 +76,13 @@ export function Hint({ id, children }: { id: string; children: ReactNode }) {
   const close = () => { try { localStorage.setItem(key, '1') } catch { /* private mode */ } setHidden(true) }
   return <div className="hint"><span>{children}</span><button onClick={close} aria-label="Dismiss tip">Got it</button></div>
 }
+
+/** The GSTFlow logo: the two-stroke tick tile plus the wordmark (GST in ink, Flow in teal). */
+export function Brand({ sub }: { sub?: ReactNode }) {
+  return (
+    <div className="brand">
+      <img className="brand-logo" src={`${import.meta.env.BASE_URL}logo-mark.svg`} alt="" width={32} height={32} />
+      <div><b>GST<span className="flow">Flow</span></b>{sub && <span>{sub}</span>}</div>
+    </div>
+  )
+}

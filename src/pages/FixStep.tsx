@@ -9,6 +9,10 @@ import { useFirm } from '../lib/session'
 import { GROUP_ORDER, GROUPS, groupOf, needsAction, openCount, optionsFor, type GroupKey, type Option } from '../lib/todo'
 import type { Client, Mark, Period, Row } from '../lib/types'
 import { itcAtRisk, itcSafe } from './MonthPage'
+import TableView from './TableView'
+
+const VIEW_KEY = 'gstflow-fix-view'
+const savedView = (): 'list' | 'table' => { try { return localStorage.getItem(VIEW_KEY) === 'table' ? 'table' : 'list' } catch { return 'list' } }
 
 interface Props {
   client: Client; period: Period; rows: Row[]; setRows: (r: Row[]) => void
@@ -27,6 +31,9 @@ export default function FixStep({ client, period, rows, setRows, final, noRegist
   const toast = useToast()
   const [q, setQ] = useState('')
   const [showMatched, setShowMatched] = useState(false)
+  const [view, setViewState] = useState<'list' | 'table'>(savedView)
+  const setView = (v: 'list' | 'table') => { setViewState(v); try { localStorage.setItem(VIEW_KEY, v) } catch { /* private mode */ } }
+  const table = view === 'table' && !noRegister
   const open = openCount(rows)
 
   async function apply(changes: { r: Row; patch: Partial<Row>; action: string; detail: string }[]) {
@@ -67,6 +74,12 @@ export default function FixStep({ client, period, rows, setRows, final, noRegist
 
       <div className="fix-bar">
         {!noRegister && (
+          <div className="seg" role="group" aria-label="View">
+            <button className={!table ? 'on' : ''} aria-pressed={!table} onClick={() => setView('list')}>To-do list</button>
+            <button className={table ? 'on' : ''} aria-pressed={table} onClick={() => setView('table')}>Table</button>
+          </div>
+        )}
+        {!noRegister && !table && (
           <span className="small">
             <b style={{ color: 'var(--good)' }}>✓ {matched.length} matched</b> · {inr(itcSafe(rows))} ITC safe ·{' '}
             <button className="link" onClick={() => setShowMatched(!showMatched)}>{showMatched ? 'Hide' : 'View'}</button>
@@ -76,7 +89,7 @@ export default function FixStep({ client, period, rows, setRows, final, noRegist
         <input className="search" id="search" type="search" placeholder="Find supplier, GSTIN or invoice" value={q} onChange={e => setQ(e.target.value)} aria-label="Search" />
       </div>
 
-      {showMatched && (
+      {showMatched && !table && (
         <section className="panel">
           <div className="panel-head"><h2>Matched</h2><span className="small muted">Nothing to do. These are safe to claim.</span></div>
           <div className="table-wrap"><table>
@@ -97,7 +110,9 @@ export default function FixStep({ client, period, rows, setRows, final, noRegist
         </div>
       )}
 
-      {GROUP_ORDER.map(g => {
+      {table && <TableView rows={visible} final={final} onDecide={decide} />}
+
+      {!table && GROUP_ORDER.map(g => {
         const items = visible.filter(r => groupOf(r) === g)
         if (!items.length) return null
         return g === 'confirm2b'

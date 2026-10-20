@@ -1,5 +1,5 @@
 import { HashRouter, NavLink, Route, Routes } from 'react-router-dom'
-import { ToastProvider } from './components/ui'
+import { Brand, ToastProvider } from './components/ui'
 import { SessionProvider, useSession } from './lib/session'
 import { isDemo, supabase } from './lib/supabase'
 import ClientSettings from './pages/ClientSettings'
@@ -35,10 +35,7 @@ function Shell() {
   return (
     <div className="shell">
       <aside className="side">
-        <div className="brand">
-          <div className="brand-mark">GF</div>
-          <div><b>GSTFlow</b><span>{firm!.name}</span></div>
-        </div>
+        <Brand sub={firm!.name} />
         <nav className="nav">
           <div className="nav-label">Practice</div>
           <NavLink to="/" end>Clients</NavLink>
@@ -69,7 +66,7 @@ function NotConfigured() {
   return (
     <div className="center">
       <div className="auth">
-        <div className="brand"><div className="brand-mark">GF</div><div><b>GSTFlow</b><span>Setup needed</span></div></div>
+        <Brand sub="Setup needed" />
         <div className="panel"><div className="panel-body">
           <h2>Not connected to a database yet</h2>
           <p className="muted small" style={{ margin: 0 }}>

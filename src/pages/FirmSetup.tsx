@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { errorText } from '../components/ui'
+import { Brand, errorText } from '../components/ui'
 import { useSession } from '../lib/session'
 import { db } from '../lib/supabase'
 
@@ -20,7 +20,7 @@ export default function FirmSetup() {
   return (
     <div className="center">
       <div className="auth">
-        <div className="brand"><div className="brand-mark">GF</div><div><b>GSTFlow</b><span>{email}</span></div></div>
+        <Brand sub={email} />
         <form className="panel" onSubmit={submit}>
           <div className="panel-head"><h2>Set up your firm</h2></div>
           <div className="panel-body">
